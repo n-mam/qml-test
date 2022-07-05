@@ -1,5 +1,6 @@
 #include <QFile>
 #include <QRect>
+#include <QThread>
 #include <QTextStream>
 
 #include "FlightDataModel.h"
@@ -7,6 +8,7 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include <future>
 
 extern sqlite3 *db;
 
@@ -65,7 +67,9 @@ void FlightDataModel::loadCSV()
     if (inputFile.open(QIODevice::ReadOnly))
     {
         beginResetModel();
+
         QTextStream in(&inputFile);
+
         while (!in.atEnd())
         {
             QString line = in.readLine();
@@ -82,11 +86,11 @@ void FlightDataModel::loadCSV()
                     values[6].trimmed().toDouble()});
         }
 
+        endResetModel();
+
         inputFile.close();
 
         setStatus("CSV file loaded, Model updated");
-
-        endResetModel();
     }
 }
 
@@ -99,16 +103,11 @@ void FlightDataModel::sortModel()
     }
 
     beginResetModel();
-    std::sort(m_model.begin(), m_model.end(), FlightDataRowComparator());
+    std::sort(m_model.begin(), m_model.end(), FlightDataRowTimeComparator());
     m_sorted = true;
-    setStatus("Model data sorted");
     endResetModel();
-}
 
-void FlightDataModel::multiThreadedSort()
-{
-
-
+    setStatus("Model data sorted");
 }
 
 void FlightDataModel::writeToDB()
@@ -161,6 +160,57 @@ void FlightDataModel::writeGeoJSON()
       sortModel();
     }
 
+    CreateJsonFromModel(m_model, "time_sorted.json");
+}
+
+QString FlightDataModel::status() const
+{
+    return m_status;
+}
+
+void FlightDataModel::setStatus(const QString& str)
+{
+    if (m_status != str)
+    {
+    m_status = str;
+    emit statusChanged();
+    }
+}
+
+QString FlightDataModel::DocToJsonString(rapidjson::Document& rjd)
+{
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    rjd.Accept(writer);
+    return buffer.GetString();
+}
+
+void FlightDataModel::multiThreadedSort()
+{
+   auto t1 = std::async(std::launch::async, &FlightDataModel::SortAltitude, this);
+   auto t2 = std::async(std::launch::async, &FlightDataModel::FilterWesternHemisphere, this);
+}
+
+void FlightDataModel::SortAltitude(void)
+{
+   auto model = m_model;
+   std::sort(model.begin(), model.end(), FlightDataRowAltitudeComparator());
+   CreateJsonFromModel(model, "altitude_sorted.json");
+}
+
+void FlightDataModel::FilterWesternHemisphere(void)
+{
+   QVector<FlightDataRow> western;
+   for (const auto& e : m_model)
+   {
+      if (e.m_longitude < 0)
+        western.push_back(e);
+   }
+   CreateJsonFromModel(western, "western.json");
+}
+
+void FlightDataModel::CreateJsonFromModel(const QVector<FlightDataRow>& model, QString fileName)
+{
     rapidjson::Document rjd;
     rjd.SetObject();
 
@@ -181,7 +231,7 @@ void FlightDataModel::writeGeoJSON()
 
     rapidjson::Value coordinatesArray(rapidjson::kArrayType);
 
-    for (const auto& e : m_model)
+    for (const auto& e : model)
     {
         rapidjson::Value coordinate(rapidjson::kArrayType);
         coordinate.PushBack(e.m_longitude, rjd.GetAllocator());
@@ -211,29 +261,7 @@ void FlightDataModel::writeGeoJSON()
     qDebug() << geoJson;
     
     std::ofstream file;
-    file.open ("geo.json");
+    file.open(fileName.toStdString().c_str());
     file << geoJson.toStdString();
     file.close();
-}
-
-QString FlightDataModel::status() const
-{
-    return m_status;
-}
-
-void FlightDataModel::setStatus(const QString& str)
-{
-    if (m_status != str)
-    {
-    m_status = str;
-    emit statusChanged();
-    }
-}
-
-QString FlightDataModel::DocToJsonString(rapidjson::Document& rjd)
-{
-    rapidjson::StringBuffer buffer;
-    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-    rjd.Accept(writer);
-    return buffer.GetString();
 }

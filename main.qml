@@ -40,7 +40,7 @@ Window {
         y: 430
         width: 97
         height: 24
-        text: qsTr("Write JSON")
+        text: qsTr("Write Geo Json")
         onClicked: {
           flightModel.writeGeoJSON();
         }

@@ -26,11 +26,19 @@ struct FlightDataRow
   }
 };
 
-struct FlightDataRowComparator
+struct FlightDataRowTimeComparator
 {
     bool operator()(const FlightDataRow &a, const FlightDataRow &b) 
     {
-        return(a < b);
+        return (a < b);
+    }
+};
+
+struct FlightDataRowAltitudeComparator
+{
+    bool operator()(const FlightDataRow &a, const FlightDataRow &b) 
+    {
+        return (a.m_altitude < b.m_altitude);
     }
 };
 
@@ -61,11 +69,13 @@ class FlightDataModel : public QAbstractTableModel
     Q_INVOKABLE void writeGeoJSON();
     Q_INVOKABLE void multiThreadedSort();
 
+    QString status() const;
     void setStatus(const QString& str);
 
-    QString status() const;
-
+    void SortAltitude(void);
+    void FilterWesternHemisphere(void);
     QString DocToJsonString(rapidjson::Document& rjd);
+    void CreateJsonFromModel(const QVector<FlightDataRow>& model, QString file);
 
   signals:
 
