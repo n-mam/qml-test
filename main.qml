@@ -5,7 +5,7 @@ import com.mycompany.qmlcomponents 1.0
 
 Window {
     id: window
-    width: 450
+    width: 550
     height: 480
     visible: true
     title: qsTr("Hello World")
@@ -58,11 +58,23 @@ Window {
         }
     }
 
+    Button {
+        id: buttonMTSort
+        x: 452
+        y: 430
+        width: 86
+        height: 24
+        text: qsTr("MT Sort")
+        onClicked: {
+          flightModel.multiThreadedSort();
+        }
+    }
+
     Rectangle {
         id: rectangle
         x: 14
         y: 13
-        width: 424
+        width: 524
         height: 396
         color: "#ffffff"
         radius: 2
@@ -73,7 +85,7 @@ Window {
             id: tableView
             x: 12
             y: 13
-            width: 400
+            width: 500
             height: 354
 
             ScrollBar.horizontal: ScrollBar {}
@@ -98,4 +110,5 @@ Window {
         x: 14
         y: 460
     }
+
 }

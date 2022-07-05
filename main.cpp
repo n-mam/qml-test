@@ -40,7 +40,8 @@ int main(int argc, char *argv[])
     "ID             INTEGER PRIMARY KEY AUTOINCREMENT," \
     "TIME           TEXT    NOT NULL," \
     "LATITUDE       REAL    NOT NULL," \
-    "LONGITUDE      REAL    NOT NULL);";
+    "LONGITUDE      REAL    NOT NULL," \
+    "ALTITUDE       REAL    NOT NULL);";
 
   rc = sqlite3_exec(db, sql, NULL, 0, &zErrMsg);
   

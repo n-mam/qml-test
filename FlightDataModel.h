@@ -19,6 +19,7 @@ struct FlightDataRow
   QTime m_time = {0,0,0};
   double m_latitude = 0;
   double m_longitude = 0;
+  double m_altitude = 0;
   bool operator < (const FlightDataRow &rhs) const
   {
     return(this->m_time < rhs.m_time);
@@ -58,20 +59,11 @@ class FlightDataModel : public QAbstractTableModel
     Q_INVOKABLE void sortModel();
     Q_INVOKABLE void writeToDB();
     Q_INVOKABLE void writeGeoJSON();
+    Q_INVOKABLE void multiThreadedSort();
 
-    void setStatus(const QString& str)
-    {
-      if (m_status != str)
-      {
-        m_status = str;
-        emit statusChanged();
-      }
-    }
-    
-    QString status() const 
-    {
-      return m_status;
-    }
+    void setStatus(const QString& str);
+
+    QString status() const;
 
     QString DocToJsonString(rapidjson::Document& rjd);
 
