@@ -8,7 +8,11 @@
 #include <QtQml/qqml.h>
 #include <QAbstractTableModel>
 
-#include <sqlite3.h> 
+#include <sqlite3.h>
+
+#include <rapidjson/writer.h>
+#include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
 
 struct FlightDataRow
 {
@@ -68,6 +72,8 @@ class FlightDataModel : public QAbstractTableModel
     {
       return m_status;
     }
+
+    QString DocToJsonString(rapidjson::Document& rjd);
 
   signals:
 

@@ -6,6 +6,7 @@
 
 #include <iostream>
 #include <sstream>
+#include <fstream>
 
 extern sqlite3 *db;
 int callback(void *NotUsed, int argc, char **argv, char **azColName) {
@@ -73,8 +74,8 @@ void FlightDataModel::loadCSV()
             if(time.isValid())
                 m_model.push_back({
                     time,
-                    values[1].toDouble(),
-                    values[2].toDouble()});
+                    values[1].trimmed().toDouble(),
+                    values[2].trimmed().toDouble()});
         }
 
         inputFile.close();
@@ -87,15 +88,27 @@ void FlightDataModel::loadCSV()
 
 void FlightDataModel::sortModel()
 {
-  beginResetModel();
-  std::sort(m_model.begin(), m_model.end(), FlightDataRowComparator());
-  m_sorted = true;
-  setStatus("Model data sorted");
-  endResetModel();
+    if (!m_model.size())
+    {
+        setStatus("Please load the csv data first.");
+        return;
+    }
+
+    beginResetModel();
+    std::sort(m_model.begin(), m_model.end(), FlightDataRowComparator());
+    m_sorted = true;
+    setStatus("Model data sorted");
+    endResetModel();
 }
 
 void FlightDataModel::writeToDB()
 {
+    if (!m_model.size())
+    {
+      setStatus("Please load the csv data first.");
+      return;
+    }
+
     if (!m_sorted)
     {
       sortModel();
@@ -126,5 +139,75 @@ void FlightDataModel::writeToDB()
 
 void FlightDataModel::writeGeoJSON()
 {
+    if (!m_model.size())
+    {
+      setStatus("Please load the csv data first.");
+      return;
+    }
 
+    if (!m_sorted)
+    {
+      sortModel();
+    }
+
+    rapidjson::Document rjd;
+    rjd.SetObject();
+
+    rjd.AddMember("type", "FeatureCollection", rjd.GetAllocator());
+
+    rapidjson::Value features; // array
+    features.SetArray();
+
+    rapidjson::Value fo; // has type and geometry
+    fo.SetObject();
+
+    fo.AddMember("type", "Feature", rjd.GetAllocator());
+
+    rapidjson::Value geometry;
+    geometry.SetObject();
+
+    geometry.AddMember("type", "LineString", rjd.GetAllocator());
+
+    rapidjson::Value coordinatesArray(rapidjson::kArrayType);
+
+    for (const auto& e : m_model)
+    {
+        rapidjson::Value coordinate(rapidjson::kArrayType);
+        coordinate.PushBack(e.m_longitude, rjd.GetAllocator());
+        coordinate.PushBack(e.m_latitude, rjd.GetAllocator());
+        coordinatesArray.PushBack(coordinate, rjd.GetAllocator());
+    }
+
+    geometry.AddMember("coordinates", coordinatesArray, rjd.GetAllocator());
+
+    fo.AddMember("geometry", geometry, rjd.GetAllocator());
+
+    // add properties object here
+    rapidjson::Value properties;
+    properties.SetObject();
+
+    properties.AddMember("test", "xxx", rjd.GetAllocator());
+
+    fo.AddMember("properties", properties, rjd.GetAllocator());
+
+    features.PushBack(fo, rjd.GetAllocator());
+
+    rjd.AddMember("features", features, rjd.GetAllocator());
+
+    auto geoJson = DocToJsonString(rjd);
+
+    qDebug() << geoJson;
+    
+    std::ofstream file;
+    file.open ("geo.json");
+    file << geoJson.toStdString();
+    file.close();
+}
+
+QString FlightDataModel::DocToJsonString(rapidjson::Document& rjd)
+{
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    rjd.Accept(writer);
+    return buffer.GetString();
 }
